@@ -1,0 +1,88 @@
+# Module navigation
+
+## Objectif
+
+Le module de navigation est responsable de la commande du robot à partir des informations visuelles détectées par la caméra. Il transforme les données de position de la ligne et les éventuelles menaces détectées en commandes de déplacement pour les moteurs.
+
+## Flux de fonctionnement
+
+                 CAMÉRA
+                    ↓
+          capture de l'image
+                    ↓
+       traitement de l'image / vision
+                    ↓
+      détection de la ligne / menace
+                    ↓
+             navigation.py
+                    ↓
+              motors.py
+                    ↓
+                 Robot
+
+## Architecture du système
+
+On utilise une caméra partagée, exploitable par plusieurs modules indépendants :
+
+- camera.py
+  - responsable de la capture de l'image
+- line_detection.py
+  - détecte la position de la ligne sur le sol
+- threat_detection.py
+  - détecte les menaces ou obstacles éventuels
+- navigation.py
+  - décide de la direction et de la commande à envoyer au robot
+- motors.py
+  - pilote les moteurs du robot et applique les commandes
+
+## Rôle de chaque module
+
+### camera.py
+Le module caméra est chargé de capturer les images en temps réel depuis le capteur visuel. Ces images servent ensuite aux modules de traitement.
+
+### line_detection.py
+Ce module analyse l'image pour trouver la position de la ligne à suivre. Il renvoie une information telle que :
+
+- ligne à gauche
+- ligne au centre
+- ligne à droite
+- ligne perdue
+
+### threat_detection.py
+Ce module analyse la scène pour détecter une menace ou un obstacle. Il permet au robot d'anticiper un danger et de réagir en conséquence.
+
+### navigation.py
+C'est le cœur de la logique de navigation. Il reçoit les informations de détection et choisit la commande à exécuter :
+
+- avancer
+- reculer
+- tourner à gauche
+- tourner à droite
+- arrêter
+
+Il sert aussi à corriger la trajectoire du robot en fonction de la position de la ligne.
+
+### motors.py
+Ce module joue le rôle d'interface avec les moteurs physiques. Il reçoit les consignes de navigation et les traduit en signaux de pilotage pour le robot.
+
+## Principe général
+
+La caméra fournit l'information visuelle. Les modules de détection interprètent cette information. Ensuite, le module navigation décide de la commande à appliquer, et le module moteurs exécute cette commande sur le robot.
+
+## Exemple de logique
+
+1. La caméra capture une image.
+2. line_detection.py localise la ligne.
+3. threat_detection.py vérifie s'il y a une menace.
+4. navigation.py détermine la prochaine action.
+5. motors.py applique la commande sur les moteurs.
+6. Le robot suit la ligne ou évite la menace.
+
+## Objectif final
+
+Le système doit permettre au robot de :
+
+- suivre une ligne de manière autonome,
+- détecter des menaces ou obstacles,
+- réagir correctement à l'environnement,
+- garder une architecture modulaire et facilement testable.
