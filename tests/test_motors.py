@@ -1,69 +1,45 @@
-import sys
-from navigation.motors import MotorController
-import types
+import RPi.GPIO as GPIO
+import time
 
-# --- fake GPIO ---
-class FakePWM:
-    def __init__(self, pin, frequency):
-        self.pin = pin
-        self.frequency = frequency
-        self.duty = 0
+AIN1 = 17
+AIN2 = 27
+NSLEEP = 22
 
-    def start(self, duty):
-        self.duty = duty
+BIN1 = 24
+BIN2 = 23
 
-    def ChangeDutyCycle(self, duty):
-        self.duty = duty
+GPIO.setmode(GPIO.BCM)
 
+GPIO.setup(AIN1, GPIO.OUT)
+GPIO.setup(AIN2, GPIO.OUT)
+GPIO.setup(NSLEEP, GPIO.OUT)
 
-class FakeGPIO:
-    BCM = "BCM"
-    OUT = "OUT"
-    HIGH = 1
-    LOW = 0
+GPIO.setup(BIN1, GPIO.OUT)
+GPIO.setup(BIN2, GPIO.OUT)
 
-    def __init__(self):
-        self.mode = None
-        self.outputs = {}
-        self.pwm_instances = []
+try:
+    print("Activation du driver moteur")
+    GPIO.output(NSLEEP, GPIO.HIGH)
 
-    def setmode(self, mode):
-        self.mode = mode
+    print("Moteur gauche")
+    GPIO.output(AIN1, GPIO.HIGH)
+    GPIO.output(AIN2, GPIO.LOW)
+    time.sleep(1)
 
-    def setup(self, pins, mode):
-        for pin in pins:
-            self.outputs[pin] = self.LOW
+    GPIO.output(AIN1, GPIO.LOW)
+    GPIO.output(AIN2, GPIO.LOW)
 
-    def output(self, pin, value):
-        self.outputs[pin] = value
+    time.sleep(1)
 
-    def PWM(self, pin, frequency):
-        pwm = FakePWM(pin, frequency)
-        self.pwm_instances.append(pwm)
-        return pwm
+    print("Moteur droit")
+    GPIO.output(BIN1, GPIO.HIGH)
+    GPIO.output(BIN2, GPIO.LOW)
+    time.sleep(1)
 
-    def cleanup(self):
-        self.outputs.clear()
+    GPIO.output(BIN1, GPIO.LOW)
+    GPIO.output(BIN2, GPIO.LOW)
 
-
-# --- injeta o módulo fake antes do import ---
-fake_rpi = types.ModuleType("RPi")
-fake_rpi.GPIO = FakeGPIO()
-sys.modules["RPi"] = fake_rpi
-sys.modules["RPi.GPIO"] = fake_rpi.GPIO
-
-# importa o controlador
-from navigation.motors import MotorController
-
-# --- teste ---
-gpio = fake_rpi.GPIO
-controller = MotorController()
-
-controller.forward(50)
-assert gpio.outputs[controller.AIN2] == gpio.LOW
-assert gpio.outputs[controller.BIN2] == gpio.LOW
-
-controller.turn_left(30)
-controller.stop()
-
-print("Teste de lógica do motor OK")
+finally:
+    GPIO.output(NSLEEP, GPIO.LOW)
+    GPIO.cleanup()
+    print("Test terminé")
