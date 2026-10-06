@@ -1,4 +1,4 @@
-from line_detection import LineDetector
+from .line_detection import LineDetector
 
 
 class Navigation:
