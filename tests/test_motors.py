@@ -1,92 +1,67 @@
-import sys
-import termios
-import tty
 import time
 from navigation.motors import MotorController
 
-def get_key():
-    """Captura uma única tecla do teclado instantaneamente (sem precisar de Enter)."""
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(sys.stdin.fileno())
-        ch = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return ch
-
-def main():
+def executar_testes():
+    print("="*40)
+    print("INICIANDO TESTES AUTOMÁTICOS DO ROBÔ")
+    print("="*40)
+    
+    # Instancia o controlador (inicializa os pinos GPIO)
     motor = MotorController()
     
-    velocidade = 50  # Velocidade padrão (0 a 100)
-    
-    # Variáveis para guardar os PWMs ativos no momento
-    pwm_left = None
-    pwm_right = None
-
-    def limpar_pwms():
-        nonlocal pwm_left, pwm_right
-        if pwm_left:
-            try: pwm_left.stop()
-            except: pass
-        if pwm_right:
-            try: pwm_right.stop()
-            except: pass
-        pwm_left, pwm_right = None, None
-
-    print("\n" + "="*40)
-    print("CONTROLE MANUAL DO ROBÔ VIA TECLADO")
-    print("="*40)
-    print("  [1] -> Ir para FRENTE")
-    print("  [2] -> Ir para TRÁS")
-    print("  [3] -> Virar à ESQUERDA")
-    print("  [4] -> Virar à DIREITA")
-    print("  [0] -> PARAR")
-    print("  [q] -> SAIR")
-    print(f"Velocidade atual: {velocidade}%")
-    print("="*40)
-    print("Pressione uma tecla...")
+    velocidade_teste = 90  # Velocidade padrão a 90%
 
     try:
-        while True:
-            tecla = get_key()
+        # 1. Testar FRENTE (forward)
+        print("\n[Teste 1/5] A testar: FRENTE (forward) a 90%")
+        pwm_a, pwm_b = motor.forward(velocidade_teste)
+        time.sleep(3)  # Mantém por 3 segundos
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)   
 
-            if tecla == '1':
-                limpar_pwms()
-                pwm_left, pwm_right = motor.forward(velocidade)
-                print(f"\r[COMANDO] FRENTE (Vel: {velocidade}%)     ", end="", flush=True)
+        # 2. Testar TRÁS (backward)
+        print("\n[Teste 2/5] A testar: TRÁS (backward) a 90%")
+        pwm_a, pwm_b = motor.backward(90)
+        time.sleep(3)
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)
 
-            elif tecla == '2':
-                limpar_pwms()
-                pwm_left, pwm_right = motor.backward(velocidade)
-                print(f"\r[COMANDO] TRÁS (Vel: {velocidade}%)       ", end="", flush=True)
+        # 3. Testar VIRAR À DIREITA (turn_right)
+        print("\n[Teste 3/5] A testar: DIREITA (turn_right) a 90%")
+        pwm_l, pwm_r = motor.turn_right(velocidade_teste)
+        time.sleep(2)  # Mantém por 2 segundos
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
+        time.sleep(1)
 
-            elif tecla == '3':
-                limpar_pwms()
-                pwm_left, pwm_right = motor.turn_left(velocidade)
-                print(f"\r[COMANDO] ESQUERDA (Vel: {velocidade}%) ", end="", flush=True)
+        # 4. Testar VIRAR À ESQUERDA (turn_left)
+        print("\n[Teste 4/5] A testar: ESQUERDA (turn_left) a 90%")
+        pwm_l, pwm_r = motor.turn_left(velocidade_teste)
+        time.sleep(2)
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
+        time.sleep(1)
 
-            elif tecla == '4':
-                limpar_pwms()
-                pwm_left, pwm_right = motor.turn_right(velocidade)
-                print(f"\r[COMANDO] DIREITA (Vel: {velocidade}%)  ", end="", flush=True)
-
-            elif tecla == '0':
-                limpar_pwms()
-                motor.stop()
-                print(f"\r[COMANDO] PARADO                      ", end="", flush=True)
-
-            elif tecla == 'q' or tecla == 'Q':
-                print("\nSaindo do programa...")
-                break
+        # 5. Testar PARAGEM E DESATIVAÇÃO (stop / disable)
+        print("\n[Teste 5/5] A testar: PARAGEM TOTAL E DESATIVAÇÃO")
+        motor.stop()
+        time.sleep(1)
+        
+        print("\n Todos os testes automáticos foram concluídos com sucesso!")
 
     except KeyboardInterrupt:
-        print("\nInterrompido pelo utilizador.")
+        print("\n[AVISO] Teste interrompido manualmente pelo utilizador.")
 
     finally:
-        limpar_pwms()
+        # Limpa todos os pinos GPIO de forma segura
         motor.cleanup()
-        print("Programa encerrado com segurança.")
+        print(" Sistema limpo e desligado.")
 
 if __name__ == "__main__":
-    main()
+    executar_testes()
