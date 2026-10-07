@@ -8,7 +8,7 @@ def main():
     try:
         # 1. Teste para a FRENTE (velocidade 50%)
         print("\n--- Teste: FRENTE ---")
-        pwm_a, pwm_b = motor.forward(50)
+        pwm_a, pwm_b = motor.forward(90)
         time.sleep(3)
         pwm_a.stop()
         pwm_b.stop()
@@ -17,7 +17,7 @@ def main():
 
         # 2. Teste para TRÁS (velocidade 40%)
         print("\n--- Teste: TRÁS ---")
-        pwm_a, pwm_b = motor.backward(40)
+        pwm_a, pwm_b = motor.backward(90)
         time.sleep(3)
         pwm_a.stop()
         pwm_b.stop()
@@ -26,7 +26,7 @@ def main():
 
         # 3. Teste: Virar à DIREITA
         print("\n--- Teste: Virar à DIREITA ---")
-        pwm_l, pwm_r = motor.turn_right(50)
+        pwm_l, pwm_r = motor.turn_right(90)
         time.sleep(2)
         pwm_l.stop()
         pwm_r.stop()
@@ -35,7 +35,7 @@ def main():
 
         # 4. Teste: Virar à ESQUERDA
         print("\n--- Teste: Virar à ESQUERDA ---")
-        pwm_l, pwm_r = motor.turn_left(50)
+        pwm_l, pwm_r = motor.turn_left(90)
         time.sleep(2)
         pwm_l.stop()
         pwm_r.stop()
