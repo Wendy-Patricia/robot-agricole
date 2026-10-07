@@ -1,50 +1,67 @@
-import cv2
+import time
+from navigation.motors import MotorController
 
-from navigation.camera import Camera
-from navigation.line_detection import LineDetector
-from navigation.navigation import Navigation
-from simulation.fake_motors import FakeMotorController
+def executar_testes():
+    print("="*40)
+    print("INICIANDO TESTES AUTOMÁTICOS DO ROBÔ")
+    print("="*40)
+    
+    # Instancia o controlador (inicializa os pinos GPIO)
+    motor = MotorController()
+    
+    velocidade_teste = 90  # Velocidade padrão a 90%
 
+    try:
+        # 1. Testar FRENTE (forward)
+        print("\n[Teste 1/5] A testar: FRENTE (forward) a 90%")
+        pwm_a, pwm_b = motor.forward(velocidade_teste)
+        time.sleep(3)  # Mantém por 3 segundos
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)   
 
-camera = Camera(
-    camera_index=0,
-    width=640,
-    height=480
-)
+        # 2. Testar TRÁS (backward)
+        print("\n[Teste 2/5] A testar: TRÁS (backward) a 90%")
+        pwm_a, pwm_b = motor.backward(90)
+        time.sleep(3)
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)
 
-motors = FakeMotorController()
-line_detector = LineDetector()
+        # 3. Testar VIRAR À DIREITA (turn_right)
+        print("\n[Teste 3/5] A testar: DIREITA (turn_right) a 90%")
+        pwm_l, pwm_r = motor.turn_right(velocidade_teste)
+        time.sleep(2)  # Mantém por 2 segundos
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
+        time.sleep(1)
 
-navigation = Navigation(
-    motors=motors,
-    line_detector=line_detector,
-    threshold=0.2,
-    speed=50
-)
+        # 4. Testar VIRAR À ESQUERDA (turn_left)
+        print("\n[Teste 4/5] A testar: ESQUERDA (turn_left) a 90%")
+        pwm_l, pwm_r = motor.turn_left(velocidade_teste)
+        time.sleep(2)
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
+        time.sleep(1)
 
-camera.start()
-navigation.start()
+        # 5. Testar PARAGEM E DESATIVAÇÃO (stop / disable)
+        print("\n[Teste 5/5] A testar: PARAGEM TOTAL E DESATIVAÇÃO")
+        motor.stop()
+        time.sleep(1)
+        
+        print("\n Todos os testes automáticos foram concluídos com sucesso!")
 
-try:
+    except KeyboardInterrupt:
+        print("\n[AVISO] Teste interrompido manualmente pelo utilizador.")
 
-    while True:
+    finally:
+        # Limpa todos os pinos GPIO de forma segura
+        motor.cleanup()
+        print(" Sistema limpo e desligado.")
 
-        frame = camera.read()
-
-        error = navigation.process_frame(frame)
-
-        if error is None:
-            print("Ligne non détectée")
-        else:
-            print(f"Erreur: {error:.2f}")
-
-        cv2.imshow("Camera", frame)
-
-        if cv2.waitKey(1) == 27:
-            break
-
-finally:
-
-    navigation.stop()
-    camera.stop()
-    cv2.destroyAllWindows()
+if __name__ == "__main__":
+    executar_testes()
