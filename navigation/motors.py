@@ -5,12 +5,12 @@ import time
 class MotorController:
 
     # GPIO Motor A
-    AIN1 = 18
-    AIN2 = 27
+    AIN1 = 22
+    AIN2 = 23
 
     # GPIO Motor B
-    BIN1 = 22
-    BIN2 = 23
+    BIN1 = 18
+    BIN2 = 27
 
     # Standby do TB6612FNG
     NSLEEP = 17
