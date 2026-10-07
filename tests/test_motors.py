@@ -1,45 +1,54 @@
-import RPi.GPIO as GPIO
 import time
+from navigation.motors import MotorController
 
-AIN1 = 18
-AIN2 = 27
-NSLEEP = 17
+def main():
+    print("A iniciar o teste do MotorController...")
+    motor = MotorController()
 
-BIN1 = 22
-BIN2 = 23
+    try:
+        # 1. Teste para a FRENTE (velocidade 50%)
+        print("\n--- Teste: FRENTE ---")
+        pwm_a, pwm_b = motor.forward(50)
+        time.sleep(3)
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)
 
-GPIO.setmode(GPIO.BCM)
+        # 2. Teste para TRÁS (velocidade 40%)
+        print("\n--- Teste: TRÁS ---")
+        pwm_a, pwm_b = motor.backward(40)
+        time.sleep(3)
+        pwm_a.stop()
+        pwm_b.stop()
+        motor.stop()
+        time.sleep(1)
 
-GPIO.setup(AIN1, GPIO.OUT)
-GPIO.setup(AIN2, GPIO.OUT)
-GPIO.setup(NSLEEP, GPIO.OUT)
+        # 3. Teste: Virar à DIREITA
+        print("\n--- Teste: Virar à DIREITA ---")
+        pwm_l, pwm_r = motor.turn_right(50)
+        time.sleep(2)
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
+        time.sleep(1)
 
-GPIO.setup(BIN1, GPIO.OUT)
-GPIO.setup(BIN2, GPIO.OUT)
+        # 4. Teste: Virar à ESQUERDA
+        print("\n--- Teste: Virar à ESQUERDA ---")
+        pwm_l, pwm_r = motor.turn_left(50)
+        time.sleep(2)
+        pwm_l.stop()
+        pwm_r.stop()
+        motor.stop()
 
-try:
-    print("Activation du driver moteur")
-    GPIO.output(NSLEEP, GPIO.HIGH)
+        print("\n--- Teste Concluído com Sucesso! ---")
 
-    print("Moteur gauche")
-    GPIO.output(AIN1, GPIO.HIGH)
-    GPIO.output(AIN2, GPIO.LOW)
-    time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nTeste interrompido manualmente pelo utilizador.")
 
-    GPIO.output(AIN1, GPIO.LOW)
-    GPIO.output(AIN2, GPIO.LOW)
+    finally:
+        # Limpa os pinos GPIO e desativa o driver com segurança
+        motor.cleanup()
 
-    time.sleep(1)
-
-    print("Moteur droit")
-    GPIO.output(BIN1, GPIO.HIGH)
-    GPIO.output(BIN2, GPIO.LOW)
-    time.sleep(1)
-
-    GPIO.output(BIN1, GPIO.LOW)
-    GPIO.output(BIN2, GPIO.LOW)
-
-finally:
-    GPIO.output(NSLEEP, GPIO.LOW)
-    GPIO.cleanup()
-    print("Test terminé")
+if __name__ == "__main__":
+    main()
