@@ -1,11 +1,11 @@
 import RPi.GPIO as GPIO
 import time
 
-AIN1 = 17
+AIN1 = 18
 AIN2 = 27
-NSLEEP = 22
+NSLEEP = 17
 
-BIN1 = 24
+BIN1 = 22
 BIN2 = 23
 
 GPIO.setmode(GPIO.BCM)
