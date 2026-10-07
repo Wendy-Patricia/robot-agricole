@@ -86,23 +86,21 @@ class MotorController:
 
         return pwm_a, pwm_b
 
+
     def turn_right(self, speed):
         """
-        Tourner vers la droite.
+        Tourner vers la droite (Moteur gauche avance, moteur droit recule).
         """
-
         speed = self._limit_speed(speed)
 
-        # Moteur gauche : avance
-        GPIO.output(self.AIN1, GPIO.LOW)
-
-        pwm_left = GPIO.PWM(self.AIN2, self.FREQUENCY)
+        # Moteur gauche (Motor A) : AVANCE (AIN1 PWM, AIN2 LOW)
+        GPIO.output(self.AIN2, GPIO.LOW)
+        pwm_left = GPIO.PWM(self.AIN1, self.FREQUENCY)
         pwm_left.start(0)
 
-        # Moteur droit : avance
-        GPIO.output(self.BIN2, GPIO.LOW)
-
-        pwm_right = GPIO.PWM(self.BIN1, self.FREQUENCY)
+        # Moteur droit (Motor B) : RECULE (BIN1 LOW, BIN2 PWM)
+        GPIO.output(self.BIN1, GPIO.LOW)
+        pwm_right = GPIO.PWM(self.BIN2, self.FREQUENCY)
         pwm_right.start(0)
 
         pwm_left.ChangeDutyCycle(speed)
@@ -112,19 +110,18 @@ class MotorController:
 
     def turn_left(self, speed):
         """
-        Tourner vers la gauche.
+        Tourner vers la gauche (Moteur gauche recule, moteur droit avance).
         """
-
         speed = self._limit_speed(speed)
 
-        # Moteur gauche
-        GPIO.output(self.AIN2, GPIO.LOW)
-
-        pwm_left = GPIO.PWM(self.AIN1, self.FREQUENCY)
+        # Moteur gauche (Motor A) : RECULE (AIN1 LOW, AIN2 PWM)
+        GPIO.output(self.AIN1, GPIO.LOW)
+        pwm_left = GPIO.PWM(self.AIN2, self.FREQUENCY)
         pwm_left.start(0)
 
-        # Moteur droit
-        pwm_right = GPIO.PWM(self.BIN2, self.FREQUENCY)
+        # Moteur droit (Motor B) : AVANCE (BIN1 PWM, BIN2 LOW)
+        GPIO.output(self.BIN2, GPIO.LOW)
+        pwm_right = GPIO.PWM(self.BIN1, self.FREQUENCY)
         pwm_right.start(0)
 
         pwm_left.ChangeDutyCycle(speed)
