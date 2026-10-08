@@ -3,8 +3,24 @@ import numpy as np
 
 
 class LineDetector:
-    def __init__(self, min_area=500):
+    COLOR_RANGES = {
+        "black": [([0, 0, 0], [180, 255, 80])],
+        "red": [([0, 100, 50], [10, 255, 255]), ([170, 100, 50], [180, 255, 255])],
+        "orange": [([11, 100, 50], [20, 255, 255])],
+        "yellow": [([21, 100, 50], [35, 255, 255])],
+        "green": [([36, 80, 40], [85, 255, 255])],
+        "blue": [([86, 80, 40], [130, 255, 255])],
+        "purple": [([131, 80, 40], [169, 255, 255])],
+    }
+
+    def __init__(self, min_area=500, color="black"):
         self.min_area = min_area
+        self.color = color.lower()
+        if self.color not in self.COLOR_RANGES:
+            available_colors = ", ".join(self.COLOR_RANGES)
+            raise ValueError(
+                f"Cor desconhecida: {color}. Cores disponíveis: {available_colors}"
+            )
 
     def detect(self, frame):
         """
@@ -23,13 +39,15 @@ class LineDetector:
         # Convertir l'image du format BGR vers HSV
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-        # Définir la couleur recherchée
-        # Ici, on recherche une ligne noire ou très sombre
-        lower = np.array([0, 0, 0])
-        upper = np.array([180, 255, 80])
-
-        # Créer un masque contenant uniquement la couleur recherchée
-        mask = cv2.inRange(hsv, lower, upper)
+        # Criar uma máscara para cada intervalo HSV da cor selecionada.
+        mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
+        for lower, upper in self.COLOR_RANGES[self.color]:
+            color_mask = cv2.inRange(
+                hsv,
+                np.array(lower, dtype=np.uint8),
+                np.array(upper, dtype=np.uint8)
+            )
+            mask = cv2.bitwise_or(mask, color_mask)
 
         # Créer un noyau pour supprimer les petits bruits
         kernel = np.ones((5, 5), np.uint8)
