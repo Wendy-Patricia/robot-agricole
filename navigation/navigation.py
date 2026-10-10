@@ -1,20 +1,16 @@
-from .line_detection import LineDetector
+from .interfaces import LineDetectorProtocol, MotorDriver
 
 
 class Navigation:
     def __init__(
         self,
-        motors,
-        line_detector=None,
-        threshold=0.2,
-        speed=50
+        motors: MotorDriver,
+        line_detector: LineDetectorProtocol,
+        threshold: float = 0.2,
+        speed: float = 50
     ):
         self.motors = motors
-
-        if line_detector is None:
-            self.line_detector = LineDetector()
-        else:
-            self.line_detector = line_detector
+        self.line_detector = line_detector
 
         self.threshold = threshold
         self.speed = speed

@@ -1,23 +1,7 @@
 import unittest
 
 from navigation.navigation import Navigation
-
-
-class FakeMotors:
-    def __init__(self):
-        self.commands = []
-
-    def forward(self, speed):
-        self.commands.append(("forward", speed))
-
-    def turn_left(self, speed):
-        self.commands.append(("turn_left", speed))
-
-    def turn_right(self, speed):
-        self.commands.append(("turn_right", speed))
-
-    def stop(self):
-        self.commands.append(("stop", None))
+from simulation.fake_motors import FakeMotorController
 
 
 class SequenceDetector:
@@ -30,19 +14,25 @@ class SequenceDetector:
 
 class NavigationTests(unittest.TestCase):
     def test_repeated_line_loss_stops_once_and_does_not_reissue_commands(self):
-        motors = FakeMotors()
-        detector = SequenceDetector([-0.5, None, None, None])
+        motors = FakeMotorController()
+        detector = SequenceDetector([-0.5, 0.0, 0.5, None, None])
         navigation = Navigation(motors, line_detector=detector)
         navigation.start()
 
         self.assertEqual(navigation.process_frame(None), -0.5)
-        self.assertIsNone(navigation.process_frame(None))
+        self.assertEqual(navigation.process_frame(None), 0.0)
+        self.assertEqual(navigation.process_frame(None), 0.5)
         self.assertIsNone(navigation.process_frame(None))
         self.assertIsNone(navigation.process_frame(None))
 
         self.assertEqual(
             motors.commands,
-            [("turn_left", 50), ("stop", None)]
+            [
+                ("turn_left", 50),
+                ("forward", 50),
+                ("turn_right", 50),
+                ("stop", None),
+            ]
         )
 
 

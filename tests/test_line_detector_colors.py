@@ -67,6 +67,21 @@ class LineDetectorColorTests(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(cv2.countNonZero(mask), 0)
 
+    def test_uses_custom_hsv_ranges(self):
+        detector = LineDetector(
+            min_area=100,
+            hsv_ranges=[([0, 200, 200], [5, 255, 255])]
+        )
+
+        error, _ = detector.detect(self.make_frame_with_line((0, 0, 255)))
+
+        self.assertIsNotNone(error)
+        self.assertLess(error, 0)
+
+    def test_rejects_invalid_custom_hsv_range(self):
+        with self.assertRaises(ValueError):
+            LineDetector(hsv_ranges=[([0, 0, 0], [181, 255, 255])])
+
     def test_black_remains_the_default_color(self):
         detector = LineDetector(min_area=100)
 

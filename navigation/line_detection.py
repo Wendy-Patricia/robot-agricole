@@ -13,7 +13,7 @@ class LineDetector:
         "purple": [([131, 80, 40], [169, 255, 255])],
     }
 
-    def __init__(self, min_area=500, color="black"):
+    def __init__(self, min_area=500, color="black", hsv_ranges=None):
         self.min_area = min_area
         self.color = color.lower()
         if self.color not in self.COLOR_RANGES:
@@ -21,6 +21,41 @@ class LineDetector:
             raise ValueError(
                 f"Cor desconhecida: {color}. Cores disponíveis: {available_colors}"
             )
+        selected_ranges = self.COLOR_RANGES[self.color] if hsv_ranges is None else hsv_ranges
+        self.hsv_ranges = self._validate_hsv_ranges(selected_ranges)
+
+    @staticmethod
+    def _validate_hsv_ranges(hsv_ranges):
+        channel_max = np.array([180, 255, 255])
+        if len(hsv_ranges) == 0:
+            raise ValueError("É necessário fornecer pelo menos um intervalo HSV")
+
+        validated_ranges = []
+        for bounds in hsv_ranges:
+            if len(bounds) != 2:
+                raise ValueError("Cada intervalo HSV deve conter limites inferior e superior")
+
+            lower = np.asarray(bounds[0])
+            upper = np.asarray(bounds[1])
+            if lower.shape != (3,) or upper.shape != (3,):
+                raise ValueError("Cada limite HSV deve conter exatamente 3 valores")
+            if not np.issubdtype(lower.dtype, np.integer) or not np.issubdtype(
+                upper.dtype, np.integer
+            ):
+                raise ValueError("Os limites HSV devem ser números inteiros")
+            if (
+                np.any(lower < 0)
+                or np.any(lower > channel_max)
+                or np.any(upper < 0)
+                or np.any(upper > channel_max)
+            ):
+                raise ValueError("Os limites HSV estão fora do intervalo permitido")
+            if np.any(lower > upper):
+                raise ValueError("O limite inferior HSV não pode exceder o superior")
+
+            validated_ranges.append((lower.astype(np.uint8), upper.astype(np.uint8)))
+
+        return tuple(validated_ranges)
 
     def detect(self, frame):
         """
@@ -41,11 +76,11 @@ class LineDetector:
 
         # Criar uma máscara para cada intervalo HSV da cor selecionada.
         mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
-        for lower, upper in self.COLOR_RANGES[self.color]:
+        for lower, upper in self.hsv_ranges:
             color_mask = cv2.inRange(
                 hsv,
-                np.array(lower, dtype=np.uint8),
-                np.array(upper, dtype=np.uint8)
+                lower,
+                upper
             )
             mask = cv2.bitwise_or(mask, color_mask)
 

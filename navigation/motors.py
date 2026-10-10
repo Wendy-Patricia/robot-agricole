@@ -1,7 +1,8 @@
 from importlib import import_module
+from .interfaces import MotorDriver
 
 
-class MotorController:
+class MotorController(MotorDriver):
     AIN1 = 22
     AIN2 = 23
     BIN1 = 18
@@ -28,19 +29,19 @@ class MotorController:
         for pwm in self._pwm_channels.values():
             pwm.start(0)
 
-    def forward(self, speed):
+    def forward(self, speed: float) -> None:
         speed = self._limit_speed(speed)
         self._set_motor_speeds(speed, speed, self.AIN1, self.BIN1)
 
-    def backward(self, speed):
+    def backward(self, speed: float) -> None:
         speed = self._limit_speed(speed)
         self._set_motor_speeds(speed, speed, self.AIN2, self.BIN2)
 
-    def turn_right(self, speed):
+    def turn_right(self, speed: float) -> None:
         speed = self._limit_speed(speed)
         self._set_motor_speeds(speed, speed, self.AIN1, self.BIN2)
 
-    def turn_left(self, speed):
+    def turn_left(self, speed: float) -> None:
         speed = self._limit_speed(speed)
         self._set_motor_speeds(speed, speed, self.AIN2, self.BIN1)
 
@@ -53,7 +54,7 @@ class MotorController:
         self._pwm_channels[reverse_pin].ChangeDutyCycle(0)
         self._pwm_channels[active_pin].ChangeDutyCycle(speed)
 
-    def stop(self):
+    def stop(self) -> None:
         for pwm in self._pwm_channels.values():
             pwm.ChangeDutyCycle(0)
 
