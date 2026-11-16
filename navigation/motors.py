@@ -80,7 +80,7 @@ class MotorController:
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN1, self.BIN1
+            self.AIN1, self.BIN2
         )
 
         return speed, speed
@@ -90,7 +90,7 @@ class MotorController:
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN2, self.BIN2
+            self.AIN2, self.BIN1
         )
 
         return speed, speed
@@ -100,7 +100,7 @@ class MotorController:
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN1, self.BIN2
+            self.AIN2, self.BIN2
         )
 
         return speed, speed
@@ -110,10 +110,11 @@ class MotorController:
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN2, self.BIN1
+            self.AIN1, self.BIN1
         )
 
         return speed, speed
+
 
     # --------------------------------------------------
     # Controlo interno dos motores
