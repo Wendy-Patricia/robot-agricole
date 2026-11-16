@@ -31,6 +31,9 @@ class MotorController:
             gpio_module = import_module("RPi.GPIO")
 
         self.gpio = gpio_module
+        if hasattr(self.gpio, "PWM"):
+            self.gpio.PWM.__del__ = lambda self: None
+            
         self._pwm_channels = {}
         self._cleaned_up = False
         self._enabled = False
