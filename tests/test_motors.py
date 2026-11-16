@@ -1,64 +1,82 @@
+
 import time
 from navigation.motors import MotorController
 
+
 def executar_testes():
-    print("="*40)
-    print("TESTE MANUAL DOS MOTORES")
-    print("="*40)
+    print("=" * 40)
+    print("INICIANDO TESTES AUTOMÁTICOS DO ROBÔ")
+    print("=" * 40)
 
-    confirmacao = input(
-        "Confirma que o robô está seguro e com as rodas suspensas? (SIM): "
-    )
-    if confirmacao.strip().upper() != "SIM":
-        print("Teste cancelado.")
-        return
+    velocidade_teste = 90
+    duracao = 2
 
-    motor = MotorController()
-    velocidade_teste = 90  # Velocidade padrão a 90%
+    motor = None
+
+    testes = [
+        ("FRENTE", "forward"),
+        ("TRÁS", "backward"),
+        ("DIREITA", "turn_right"),
+        ("ESQUERDA", "turn_left"),
+    ]
 
     try:
-        # 1. Testar FRENTE (forward)
-        print("\n[Teste 1/5] A testar: FRENTE (forward) a 90%")
-        motor.forward(velocidade_teste)
-        time.sleep(3)  # Mantém por 3 segundos
-        motor.stop()
-        time.sleep(1)   
+        motor = MotorController()
 
-        # 2. Testar TRÁS (backward)
-        print("\n[Teste 2/5] A testar: TRÁS (backward) a 90%")
-        motor.backward(90)
-        time.sleep(3)
+        for indice, (nome, metodo) in enumerate(testes, start=1):
+            print(
+                f"\n[Teste {indice}/5] "
+                f"A testar: {nome} a {velocidade_teste}%"
+            )
+
+            funcao = getattr(motor, metodo)
+
+            # Executar movimento
+            velocidade_esquerda, velocidade_direita = funcao(
+                velocidade_teste
+            )
+
+            print(
+                f"PWM comandado: "
+                f"esquerdo={velocidade_esquerda}%, "
+                f"direito={velocidade_direita}%"
+            )
+
+            # Manter o movimento durante 2 segundos
+            time.sleep(duracao)
+
+            # Parar usando o controlador
+            motor.stop()
+            print(f"Teste {indice} concluído.")
+
+            # Pausa antes do movimento seguinte
+            time.sleep(1)
+
+        print("\n[Teste 5/5] A testar: PARAGEM")
+
         motor.stop()
         time.sleep(1)
 
-        # 3. Testar VIRAR À DIREITA (turn_right)
-        print("\n[Teste 3/5] A testar: DIREITA (turn_right) a 90%")
-        motor.turn_right(velocidade_teste)
-        time.sleep(2)  # Mantém por 2 segundos
-        motor.stop()
-        time.sleep(1)
+        print("Teste de paragem concluído.")
 
-        # 4. Testar VIRAR À ESQUERDA (turn_left)
-        print("\n[Teste 4/5] A testar: ESQUERDA (turn_left) a 90%")
-        motor.turn_left(velocidade_teste)
-        time.sleep(2)
-        motor.stop()
-        time.sleep(1)
-
-        # 5. Testar PARAGEM E DESATIVAÇÃO (stop / disable)
-        print("\n[Teste 5/5] A testar: PARAGEM TOTAL E DESATIVAÇÃO")
-        motor.stop()
-        time.sleep(1)
-        
-        print("\n O teste manual dos motores foi concluído com sucesso!")
+        print("\n" + "=" * 40)
+        print("TODOS OS TESTES FORAM EXECUTADOS")
+        print("=" * 40)
 
     except KeyboardInterrupt:
-        print("\n[AVISO] Teste interrompido manualmente pelo utilizador.")
+        print("\nTestes interrompidos pelo utilizador.")
+
+    except Exception as erro:
+        print(f"\nErro durante os testes: {erro}")
+        raise
 
     finally:
-        # Limpa todos os pinos GPIO de forma segura
-        motor.cleanup()
-        print(" Sistema limpo e desligado.")
+        if motor is not None:
+            motor.cleanup()
+
+        print("Sistema limpo e desligado.")
+
 
 if __name__ == "__main__":
     executar_testes()
+
