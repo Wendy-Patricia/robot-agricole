@@ -195,30 +195,30 @@ class MotorController:
         print("Sistema limpo e desligado.")
 
 
-def _release_resources(self):
-    if self._cleaned_up:
-        return
+    def _release_resources(self):
+        if self._cleaned_up:
+            return
 
-    self._cleaned_up = True
-    self._enabled = False
+        self._cleaned_up = True
+        self._enabled = False
 
-    try:
-        self.gpio.output(self.NSLEEP, self.gpio.LOW)
-    except Exception:
-        pass
-
-    # Parar PWM antes de libertar o GPIO
-    for pwm in self._pwm_channels.values():
         try:
-            pwm.stop()
-        except Exception as erro:
-            print(f"Erro ao parar PWM: {erro}")
+            self.gpio.output(self.NSLEEP, self.gpio.LOW)
+        except Exception:
+            pass
 
-    # Libertar as referências antes do GPIO.cleanup()
-    self._pwm_channels.clear()
+        # Parar PWM antes de libertar o GPIO
+        for pwm in self._pwm_channels.values():
+            try:
+                pwm.stop()
+            except Exception as erro:
+                print(f"Erro ao parar PWM: {erro}")
 
-    # Libertar os GPIOs no final
-    self.gpio.cleanup()
+        # Libertar as referências antes do GPIO.cleanup()
+        self._pwm_channels.clear()
+
+        # Libertar os GPIOs no final
+        self.gpio.cleanup()
 
 
     # --------------------------------------------------
