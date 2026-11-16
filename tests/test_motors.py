@@ -1,11 +1,10 @@
-
 import time
 from navigation.motors import MotorController
 
 
 def executar_testes():
     print("=" * 40)
-    print("INICIANDO TESTES AUTOMÁTICOS DO ROBÔ")
+    print("DÉMARRAGE DES TESTS AUTOMATIQUES DU ROBOT")
     print("=" * 40)
 
     velocidade_teste = 90
@@ -14,10 +13,10 @@ def executar_testes():
     motor = None
 
     testes = [
-        ("FRENTE", "forward"),
-        ("TRÁS", "backward"),
-        ("DIREITA", "turn_right"),
-        ("ESQUERDA", "turn_left"),
+        ("AVANT", "forward"),
+        ("ARRIÈRE", "backward"),
+        ("DROITE", "turn_right"),
+        ("GAUCHE", "turn_left"),
     ]
 
     try:
@@ -25,58 +24,57 @@ def executar_testes():
 
         for indice, (nome, metodo) in enumerate(testes, start=1):
             print(
-                f"\n[Teste {indice}/5] "
-                f"A testar: {nome} a {velocidade_teste}%"
+                f"\n[Test {indice}/5] "
+                f"Test en cours : {nome} à {velocidade_teste}%"
             )
 
             funcao = getattr(motor, metodo)
 
-            # Executar movimento
+            # Exécuter le mouvement
             velocidade_esquerda, velocidade_direita = funcao(
                 velocidade_teste
             )
 
             print(
-                f"PWM comandado: "
-                f"esquerdo={velocidade_esquerda}%, "
-                f"direito={velocidade_direita}%"
+                f"PWM commandé : "
+                f"gauche={velocidade_esquerda}%, "
+                f"droit={velocidade_direita}%"
             )
 
-            # Manter o movimento durante 2 segundos
+            # Maintenir le mouvement pendant 2 secondes
             time.sleep(duracao)
 
-            # Parar usando o controlador
+            # Arrêter à l'aide du contrôleur
             motor.stop()
-            print(f"Teste {indice} concluído.")
+            print(f"Test {indice} terminé.")
 
-            # Pausa antes do movimento seguinte
+            # Pause avant le mouvement suivant
             time.sleep(1)
 
-        print("\n[Teste 5/5] A testar: PARAGEM")
+        print("\n[Test 5/5] Test en cours : ARRÊT")
 
         motor.stop()
         time.sleep(1)
 
-        print("Teste de paragem concluído.")
+        print("Test d'arrêt terminé.")
 
         print("\n" + "=" * 40)
-        print("TODOS OS TESTES FORAM EXECUTADOS")
+        print("TOUS LES TESTS ONT ÉTÉ EXÉCUTÉS")
         print("=" * 40)
 
     except KeyboardInterrupt:
-        print("\nTestes interrompidos pelo utilizador.")
+        print("\nTests interrompus par l'utilisateur.")
 
     except Exception as erro:
-        print(f"\nErro durante os testes: {erro}")
+        print(f"\nErreur pendant les tests : {erro}")
         raise
 
     finally:
         if motor is not None:
             motor.cleanup()
 
-        print("Sistema limpo e desligado.")
+        print("Système nettoyé et désactivé.")
 
 
 if __name__ == "__main__":
     executar_testes()
-

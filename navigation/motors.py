@@ -5,17 +5,17 @@ import math
 
 class MotorController:
     """
-    Controlador dos dois motores do robô agrícola.
+    Contrôleur des deux moteurs du robot agricole.
 
-    Motor A: lado esquerdo
-    Motor B: lado direito
+    Moteur A : côté gauche
+    Moteur B : côté droit
 
-    PWM aplicado diretamente às entradas de direção.
-    Configuração destinada a drivers compatíveis com
-    este modo de controlo, como o DRV8833.
+    PWM appliqué directement aux entrées de direction.
+    Configuration destinée aux pilotes compatibles avec
+    ce mode de commande, comme le DRV8833.
     """
 
-    # GPIOs - Numeração BCM
+    # GPIO - Numérotation BCM
     AIN1 = 22
     AIN2 = 23
     BIN1 = 18
@@ -33,7 +33,7 @@ class MotorController:
         self.gpio = gpio_module
         if hasattr(self.gpio, "PWM"):
             self.gpio.PWM.__del__ = lambda self: None
-            
+
         self._pwm_channels = {}
         self._cleaned_up = False
         self._enabled = False
@@ -42,14 +42,14 @@ class MotorController:
         self.gpio.setmode(self.gpio.BCM)
 
         try:
-            # Inicializar todos os GPIOs desligados
+            # Initialiser tous les GPIO à l'état bas
             self.gpio.setup(
                 [*self.MOTOR_PINS, self.NSLEEP],
                 self.gpio.OUT,
                 initial=self.gpio.LOW
             )
 
-            # Criar um objeto PWM por pino, apenas uma vez
+            # Créer un objet PWM par broche, une seule fois
             for pin in self.MOTOR_PINS:
                 pwm = self.gpio.PWM(pin, self.FREQUENCY)
                 self._pwm_channels[pin] = pwm
@@ -64,7 +64,7 @@ class MotorController:
             raise
 
     # --------------------------------------------------
-    # Ativação do driver
+    # Activation du pilote
     # --------------------------------------------------
 
     def enable(self):
@@ -75,10 +75,9 @@ class MotorController:
             self._enabled = True
 
     # --------------------------------------------------
-    # Movimentos
+    # Mouvements
     # --------------------------------------------------
 
-  
     def forward(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
 
@@ -119,9 +118,8 @@ class MotorController:
 
         return speed, speed
 
-
     # --------------------------------------------------
-    # Controlo interno dos motores
+    # Commande interne des moteurs
     # --------------------------------------------------
 
     def _set_motor_speeds(
@@ -137,12 +135,12 @@ class MotorController:
         left_speed = self._limit_speed(left_speed)
         right_speed = self._limit_speed(right_speed)
 
-        # Desativar os quatro sinais antes de
-        # mudar a direção dos motores
+        # Désactiver les quatre signaux avant de
+        # changer le sens de rotation des moteurs
         for pwm in self._pwm_channels.values():
             pwm.ChangeDutyCycle(0)
 
-        # Aplicar as velocidades pretendidas
+        # Appliquer les vitesses souhaitées
         self._pwm_channels[left_pin].ChangeDutyCycle(
             left_speed
         )
@@ -152,7 +150,7 @@ class MotorController:
         )
 
     # --------------------------------------------------
-    # Paragem
+    # Arrêt
     # --------------------------------------------------
 
     def stop(self) -> None:
@@ -165,7 +163,7 @@ class MotorController:
         print("Moteurs arrêtés")
 
     # --------------------------------------------------
-    # Desativação do driver
+    # Désactivation du pilote
     # --------------------------------------------------
 
     def disable(self):
@@ -184,7 +182,7 @@ class MotorController:
         print("Driver désactivé")
 
     # --------------------------------------------------
-    # Limpeza dos GPIOs
+    # Nettoyage des GPIO
     # --------------------------------------------------
 
     def cleanup(self):
@@ -197,8 +195,7 @@ class MotorController:
             self._release_resources()
 
         print("GPIO nettoyés")
-        print("Sistema limpo e desligado.")
-
+        print("Système nettoyé et désactivé.")
 
     def _release_resources(self):
         if self._cleaned_up:
@@ -207,39 +204,39 @@ class MotorController:
         self._cleaned_up = True
         self._enabled = False
 
-        # Desativar o DRV8833
+        # Désactiver le DRV8833
         try:
             self.gpio.output(self.NSLEEP, self.gpio.LOW)
         except Exception:
             pass
 
-        # Parar os canais PWM
+        # Arrêter les canaux PWM
         for pwm in self._pwm_channels.values():
             try:
                 pwm.stop()
             except Exception:
                 pass
-            
+
         self._pwm_channels.clear()
         gc.collect()
 
-        # Libertar os GPIO
+        # Libérer les GPIO
         self.gpio.cleanup()
 
     # --------------------------------------------------
-    # Verificação do estado
+    # Vérification de l'état
     # --------------------------------------------------
 
     def _check_available(self):
         if self._cleaned_up:
             raise RuntimeError(
-                "MotorController já foi desligado. "
-                "Cria uma nova instância para "
-                "voltar a controlar os motores."
+                "MotorController a déjà été désactivé. "
+                "Créez une nouvelle instance pour "
+                "commander à nouveau les moteurs."
             )
 
     # --------------------------------------------------
-    # Limitação da velocidade
+    # Limitation de la vitesse
     # --------------------------------------------------
 
     @staticmethod
@@ -248,7 +245,7 @@ class MotorController:
 
         if not math.isfinite(speed):
             raise ValueError(
-                "A velocidade deve ser um número finito."
+                "La vitesse doit être un nombre fini."
             )
 
         return max(0.0, min(100.0, speed))
