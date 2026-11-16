@@ -1,73 +1,249 @@
+
 from importlib import import_module
-from .interfaces import MotorDriver
+import math
 
 
-class MotorController(MotorDriver):
+class MotorController:
+    """
+    Controlador dos dois motores do robô agrícola.
+
+    Motor A: lado esquerdo
+    Motor B: lado direito
+
+    PWM aplicado diretamente às entradas de direção.
+    Configuração destinada a drivers compatíveis com
+    este modo de controlo, como o DRV8833.
+    """
+
+    # GPIOs - Numeração BCM
     AIN1 = 22
     AIN2 = 23
     BIN1 = 18
     BIN2 = 27
     NSLEEP = 17
+
     FREQUENCY = 2000
+
+    MOTOR_PINS = (AIN1, AIN2, BIN1, BIN2)
 
     def __init__(self, gpio_module=None):
         if gpio_module is None:
             gpio_module = import_module("RPi.GPIO")
 
         self.gpio = gpio_module
+        self._pwm_channels = {}
+        self._cleaned_up = False
+        self._enabled = False
+
+        self.gpio.setwarnings(False)
         self.gpio.setmode(self.gpio.BCM)
-        self.gpio.setup(
-            [self.AIN1, self.AIN2, self.BIN1, self.BIN2, self.NSLEEP],
-            self.gpio.OUT
+
+        try:
+            # Inicializar todos os GPIOs desligados
+            self.gpio.setup(
+                [*self.MOTOR_PINS, self.NSLEEP],
+                self.gpio.OUT,
+                initial=self.gpio.LOW
+            )
+
+            # Criar um objeto PWM por pino, apenas uma vez
+            for pin in self.MOTOR_PINS:
+                pwm = self.gpio.PWM(pin, self.FREQUENCY)
+                self._pwm_channels[pin] = pwm
+                pwm.start(0)
+
+            self.enable()
+
+            print("MotorController initialisé")
+
+        except Exception:
+            self._release_resources()
+            raise
+
+    # --------------------------------------------------
+    # Ativação do driver
+    # --------------------------------------------------
+
+    def enable(self):
+        self._check_available()
+
+        if not self._enabled:
+            self.gpio.output(self.NSLEEP, self.gpio.HIGH)
+            self._enabled = True
+
+    # --------------------------------------------------
+    # Movimentos
+    # --------------------------------------------------
+
+    def forward(self, speed: float) -> tuple[float, float]:
+        speed = self._limit_speed(speed)
+
+        self._set_motor_speeds(
+            speed, speed,
+            self.AIN1, self.BIN1
         )
-        self.gpio.output(self.NSLEEP, self.gpio.HIGH)
 
-        self._pwm_channels = {
-            pin: self.gpio.PWM(pin, self.FREQUENCY)
-            for pin in (self.AIN1, self.AIN2, self.BIN1, self.BIN2)
-        }
-        for pwm in self._pwm_channels.values():
-            pwm.start(0)
+        return speed, speed
 
-    def forward(self, speed: float) -> None:
+    def backward(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
-        self._set_motor_speeds(speed, speed, self.AIN1, self.BIN1)
 
-    def backward(self, speed: float) -> None:
+        self._set_motor_speeds(
+            speed, speed,
+            self.AIN2, self.BIN2
+        )
+
+        return speed, speed
+
+    def turn_right(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
-        self._set_motor_speeds(speed, speed, self.AIN2, self.BIN2)
 
-    def turn_right(self, speed: float) -> None:
+        self._set_motor_speeds(
+            speed, speed,
+            self.AIN1, self.BIN2
+        )
+
+        return speed, speed
+
+    def turn_left(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
-        self._set_motor_speeds(speed, speed, self.AIN1, self.BIN2)
 
-    def turn_left(self, speed: float) -> None:
-        speed = self._limit_speed(speed)
-        self._set_motor_speeds(speed, speed, self.AIN2, self.BIN1)
+        self._set_motor_speeds(
+            speed, speed,
+            self.AIN2, self.BIN1
+        )
 
-    def _set_motor_speeds(self, left_speed, right_speed, left_pin, right_pin):
-        self._set_motor(self.AIN1, self.AIN2, left_pin, left_speed)
-        self._set_motor(self.BIN1, self.BIN2, right_pin, right_speed)
+        return speed, speed
 
-    def _set_motor(self, forward_pin, reverse_pin, active_pin, speed):
-        self._pwm_channels[forward_pin].ChangeDutyCycle(0)
-        self._pwm_channels[reverse_pin].ChangeDutyCycle(0)
-        self._pwm_channels[active_pin].ChangeDutyCycle(speed)
+    # --------------------------------------------------
+    # Controlo interno dos motores
+    # --------------------------------------------------
 
-    def stop(self) -> None:
+    def _set_motor_speeds(
+        self,
+        left_speed,
+        right_speed,
+        left_pin,
+        right_pin
+    ):
+        self._check_available()
+        self.enable()
+
+        left_speed = self._limit_speed(left_speed)
+        right_speed = self._limit_speed(right_speed)
+
+        # Desativar os quatro sinais antes de
+        # mudar a direção dos motores
         for pwm in self._pwm_channels.values():
             pwm.ChangeDutyCycle(0)
 
+        # Aplicar as velocidades pretendidas
+        self._pwm_channels[left_pin].ChangeDutyCycle(
+            left_speed
+        )
+
+        self._pwm_channels[right_pin].ChangeDutyCycle(
+            right_speed
+        )
+
+    # --------------------------------------------------
+    # Paragem
+    # --------------------------------------------------
+
+    def stop(self) -> None:
+        if self._cleaned_up:
+            return
+
+        for pwm in self._pwm_channels.values():
+            pwm.ChangeDutyCycle(0)
+
+        print("Moteurs arrêtés")
+
+    # --------------------------------------------------
+    # Desativação do driver
+    # --------------------------------------------------
+
     def disable(self):
+        if self._cleaned_up:
+            return
+
         self.stop()
-        self.gpio.output(self.NSLEEP, self.gpio.LOW)
+
+        self.gpio.output(
+            self.NSLEEP,
+            self.gpio.LOW
+        )
+
+        self._enabled = False
+
+        print("Driver désactivé")
+
+    # --------------------------------------------------
+    # Limpeza dos GPIOs
+    # --------------------------------------------------
 
     def cleanup(self):
-        self.disable()
-        for pwm in self._pwm_channels.values():
+        if self._cleaned_up:
+            return
+
+        try:
+            self.disable()
+        finally:
+            self._release_resources()
+
+        print("GPIO nettoyés")
+        print("Sistema limpo e desligado.")
+
+
+def _release_resources(self):
+    if self._cleaned_up:
+        return
+
+    self._cleaned_up = True
+    self._enabled = False
+
+    try:
+        self.gpio.output(self.NSLEEP, self.gpio.LOW)
+    except Exception:
+        pass
+
+    # Parar PWM antes de libertar o GPIO
+    for pwm in self._pwm_channels.values():
+        try:
             pwm.stop()
-        self.gpio.cleanup()
+        except Exception as erro:
+            print(f"Erro ao parar PWM: {erro}")
+
+    # Libertar as referências antes do GPIO.cleanup()
+    self._pwm_channels.clear()
+
+    # Libertar os GPIOs no final
+    self.gpio.cleanup()
+
+
+    # --------------------------------------------------
+    # Verificação do estado
+    # --------------------------------------------------
+
+    def _check_available(self):
+        if self._cleaned_up:
+            raise RuntimeError(
+                "MotorController já foi desligado. "
+                "Cria uma nova instância para "
+                "voltar a controlar os motores."
+            )
+
+    # --------------------------------------------------
+    # Limitação da velocidade
+    # --------------------------------------------------
 
     @staticmethod
     def _limit_speed(speed):
-        return max(0, min(100, speed))
+        speed = float(speed)
+
+        if not math.isfinite(speed):
+            raise ValueError(
+                "A velocidade deve ser um número finito."
+            )
+
+        return max(0.0, min(100.0, speed))

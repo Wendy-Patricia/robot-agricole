@@ -1,6 +1,3 @@
-from .interfaces import LineDetectorProtocol, MotorDriver
-
-
 class Navigation:
     def __init__(
         self,
