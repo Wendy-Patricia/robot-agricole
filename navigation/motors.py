@@ -1,4 +1,4 @@
-
+import gc
 from importlib import import_module
 import math
 
@@ -205,14 +205,22 @@ class MotorController:
         self._enabled = False
 
         # Desativar o DRV8833
-        self.gpio.output(self.NSLEEP, self.gpio.LOW)
+        try:
+            self.gpio.output(self.NSLEEP, self.gpio.LOW)
+        except Exception:
+            pass
 
         # Parar os canais PWM
         for pwm in self._pwm_channels.values():
-            pwm.stop()
+            try:
+                pwm.stop()
+            except Exception:
+                pass
+            
+        self._pwm_channels.clear()
+        gc.collect()
 
         # Libertar os GPIO
-        self._pwm_channels.clear()
         self.gpio.cleanup()
 
     # --------------------------------------------------
