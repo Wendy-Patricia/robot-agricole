@@ -1,7 +1,7 @@
 
 from importlib import import_module
 import math
-import gc
+
 
 class MotorController:
     """
@@ -195,7 +195,6 @@ class MotorController:
         print("Sistema limpo e desligado.")
 
 
-
     def _release_resources(self):
         if self._cleaned_up:
             return
@@ -204,31 +203,15 @@ class MotorController:
         self._enabled = False
 
         # Desativar o DRV8833
-        try:
-            self.gpio.output(self.NSLEEP, self.gpio.LOW)
-        except Exception:
-            pass
+        self.gpio.output(self.NSLEEP, self.gpio.LOW)
 
-        # Parar os canais PWM enquanto o GPIO está ativo
+        # Parar os canais PWM
         for pwm in self._pwm_channels.values():
-            try:
-                pwm.ChangeDutyCycle(0)
-                pwm.stop()
-            except Exception as error:
-                print(f"Erro ao parar PWM: {error}")
+            pwm.stop()
 
-        # Remover referências aos objetos PWM
-        # antes de fechar o controlador GPIO
+        # Libertar os GPIO
         self._pwm_channels.clear()
-
-        # Forçar a destruição dos objetos PWM
-        # enquanto o chip ainda está disponível
-        gc.collect()
-
-        # Libertar os pinos no final
         self.gpio.cleanup()
-
-
 
     # --------------------------------------------------
     # Verificação do estado
