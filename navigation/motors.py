@@ -75,17 +75,8 @@ class MotorController:
     # Movimentos
     # --------------------------------------------------
 
+  
     def forward(self, speed: float) -> tuple[float, float]:
-        speed = self._limit_speed(speed)
-
-        self._set_motor_speeds(
-            speed, speed,
-            self.AIN1, self.BIN2
-        )
-
-        return speed, speed
-
-    def backward(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
 
         self._set_motor_speeds(
@@ -95,12 +86,22 @@ class MotorController:
 
         return speed, speed
 
+    def backward(self, speed: float) -> tuple[float, float]:
+        speed = self._limit_speed(speed)
+
+        self._set_motor_speeds(
+            speed, speed,
+            self.AIN1, self.BIN2
+        )
+
+        return speed, speed
+
     def turn_right(self, speed: float) -> tuple[float, float]:
         speed = self._limit_speed(speed)
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN2, self.BIN2
+            self.AIN1, self.BIN1
         )
 
         return speed, speed
@@ -110,7 +111,7 @@ class MotorController:
 
         self._set_motor_speeds(
             speed, speed,
-            self.AIN1, self.BIN1
+            self.AIN2, self.BIN2
         )
 
         return speed, speed
