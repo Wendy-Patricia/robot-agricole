@@ -1,4 +1,6 @@
-navigation/explicacoes_wendy.py
+# Ambientes virtuais
+venv/
+.venv/
 
 # Python
 __pycache__/
