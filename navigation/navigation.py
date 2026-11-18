@@ -1,16 +1,26 @@
+import math
+
+
 class Navigation:
     def __init__(
         self,
-        motors: MotorDriver,
-        line_detector: LineDetectorProtocol,
+        motors,
+        line_detector,
         threshold: float = 0.2,
         speed: float = 50
     ):
         self.motors = motors
         self.line_detector = line_detector
 
+        threshold = float(threshold)
+        speed = float(speed)
+        if not math.isfinite(threshold) or threshold < 0:
+            raise ValueError("Le seuil doit être un nombre fini positif ou nul.")
+        if not math.isfinite(speed):
+            raise ValueError("La vitesse doit être un nombre fini.")
+
         self.threshold = threshold
-        self.speed = speed
+        self.speed = max(0.0, min(100.0, speed))
 
         self.running = False
         self._last_command = None
@@ -22,6 +32,8 @@ class Navigation:
     def stop(self):
         """Arrête la navigation autonome."""
         self.running = False
+        # Un arrêt explicite est toujours transmis aux moteurs.
+        self._last_command = None
         self.motors.stop()
         self._last_command = ("stop", None)
 
@@ -46,11 +58,18 @@ class Navigation:
             error: erreur de position de la ligne
         """
 
-        # Détecter la ligne dans l'image
+        try:
+            return self._process_frame(frame)
+        except Exception:
+            # Une erreur de détection ou de commande interrompt la navigation.
+            self.stop()
+            raise
+
+    def _process_frame(self, frame):
         error, _ = self.line_detector.detect(frame)
 
         # Si aucune ligne n'est détectée, arrêter le robot
-        if error is None:
+        if error is None or not math.isfinite(error):
             self._apply_command("stop")
             return None
 
