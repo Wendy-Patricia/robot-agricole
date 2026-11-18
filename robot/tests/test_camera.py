@@ -1,6 +1,6 @@
 import cv2
 
-from navigation.camera import Camera
+from robot.navigation.camera import Camera
 
 
 def executar_teste_manual():

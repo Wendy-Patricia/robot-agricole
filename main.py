@@ -1,7 +1,7 @@
-from navigation.camera import Camera
-from navigation.line_detection import LineDetector
-from navigation.motors import MotorController
-from navigation.navigation import Navigation
+from robot.navigation.camera import Camera
+from robot.navigation.line_detection import LineDetector
+from robot.navigation.motors import MotorController
+from robot.navigation.navigation import Navigation
 
 
 def main():

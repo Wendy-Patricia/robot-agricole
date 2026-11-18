@@ -3,7 +3,7 @@ import unittest
 import cv2
 import numpy as np
 
-from navigation.line_detection import LineDetector
+from robot.navigation.line_detection import LineDetector
 
 
 class LineDetectorColorTests(unittest.TestCase):

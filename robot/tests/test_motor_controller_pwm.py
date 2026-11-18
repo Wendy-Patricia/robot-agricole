@@ -1,6 +1,6 @@
 import unittest
 
-from navigation.motors import MotorController
+from robot.navigation.motors import MotorController
 
 
 class FakePWM:

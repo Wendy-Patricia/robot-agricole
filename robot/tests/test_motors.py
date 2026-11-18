@@ -1,5 +1,5 @@
 import time
-from navigation.motors import MotorController
+from robot.navigation.motors import MotorController
 
 
 def executar_testes():

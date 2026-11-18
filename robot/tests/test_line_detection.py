@@ -1,7 +1,7 @@
 import cv2
 
-from navigation.camera import Camera
-from navigation.line_detection import LineDetector
+from robot.navigation.camera import Camera
+from robot.navigation.line_detection import LineDetector
 
 
 def executar_teste_manual():
