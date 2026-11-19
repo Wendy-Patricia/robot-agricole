@@ -1,66 +1,117 @@
+
 import cv2
 import numpy as np
 
 
 class LineDetector:
-    # Intervalle HSV réservé à la couleur noire (V faible, jusqu'à 80)
-    BLACK_LOWER = np.array([0, 0, 0], dtype=np.uint8)
-    BLACK_UPPER = np.array([180, 255, 80], dtype=np.uint8)
+    """
+    Détection d'une ligne sombre avec
+    seuillage adaptatif.
+
+    Adapté aux variations d'éclairage.
+    """
 
     def __init__(self, min_area=500):
         self.min_area = min_area
 
     def detect(self, frame):
         """
-        Détecte la ligne noire présente dans l'image.
-
         Returns:
-            error: position normalisée de la ligne entre -1 et 1
-            mask: image binaire utilisée pour la détection
+            error: position normalisée [-1, 1]
+            mask: masque binaire
         """
+
+        if frame is None or frame.size == 0:
+            return None, None
+
         height, width = frame.shape[:2]
 
-        # Sélectionner uniquement la partie inférieure de l'image
-        roi = frame[int(height * 0.5):height, :]
+        # Région inférieure de l'image
+        y_start = int(height * 0.50)
+        y_end = int(height * 0.95)
 
-        # Convertir l'image de BGR en HSV
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        roi = frame[y_start:y_end, :]
 
-        # Créer un masque directement pour le noir
-        mask = cv2.inRange(hsv, self.BLACK_LOWER, self.BLACK_UPPER)
+        # Conversion en niveaux de gris
+        gray = cv2.cvtColor(
+            roi,
+            cv2.COLOR_BGR2GRAY
+        )
 
-        # Créer un noyau et appliquer des opérations morphologiques pour éliminer le bruit
-        kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        # Réduction du bruit
+        blurred = cv2.GaussianBlur(
+            gray, (5, 5), 0
+        )
 
-        # Rechercher les contours dans le masque
+        # Seuil adaptatif :
+        # détecte les zones sombres par rapport
+        # à leur environnement immédiat
+        mask = cv2.adaptiveThreshold(
+            blurred,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            51,
+            9
+        )
+
+        # Réunir les segments de la ligne
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT, (3, 7)
+        )
+
+        mask = cv2.morphologyEx(
+            mask,
+            cv2.MORPH_CLOSE,
+            kernel
+        )
+
         contours, _ = cv2.findContours(
             mask,
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE
         )
 
-        if not contours:
+        candidates = []
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+
+            if area < self.min_area:
+                continue
+
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Éviter les régions très larges
+            # qui ne ressemblent pas à une ligne
+            if w > width * 0.35:
+                continue
+
+            # Privilégier une structure allongée
+            if h < w:
+                continue
+
+            candidates.append(contour)
+
+        if not candidates:
             return None, mask
 
-        # Sélectionner le plus grand contour
-        largest_contour = max(contours, key=cv2.contourArea)
+        # Plus grande ligne candidate
+        largest = max(
+            candidates,
+            key=cv2.contourArea
+        )
 
-        # Ignorer les contours trop petits
-        if cv2.contourArea(largest_contour) < self.min_area:
-            return None, mask
+        moments = cv2.moments(largest)
 
-        # Calculer les moments pour trouver le centroïde
-        moments = cv2.moments(largest_contour)
         if moments["m00"] == 0:
             return None, mask
 
-        cx = int(moments["m10"] / moments["m00"])
+        cx = moments["m10"] / moments["m00"]
 
-        # Convertir la position horizontale en une erreur normalisée entre -1 et 1
-        roi_width = roi.shape[1]
-        error = (cx - roi_width / 2) / (roi_width / 2)
-        error = max(-1.0, min(1.0, error))
+        # Erreur horizontale normalisée
+        error = (cx - width / 2) / (width / 2)
+
+        error = float(np.clip(error, -1.0, 1.0))
 
         return error, mask
