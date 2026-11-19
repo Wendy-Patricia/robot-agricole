@@ -2,8 +2,8 @@
 import cv2
 import time
 
-from camera import Camera
-from line_detector import LineDetector
+from robot.navigation.camera import Camera
+from robot.navigation.line_detection import LineDetector
 
 
 def main():
