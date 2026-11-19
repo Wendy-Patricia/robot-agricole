@@ -7,7 +7,7 @@ def executar_testes():
     print("DÉMARRAGE DES TESTS AUTOMATIQUES DU ROBOT")
     print("=" * 40)
 
-    velocidade_teste = 90
+    velocidade_teste = 40
     duracao = 2
 
     motor = None
