@@ -118,6 +118,20 @@ class MotorController:
         )
 
         return speed, speed
+    
+    def drive(self, left_speed: float, right_speed: float) -> tuple[float, float]:
+        """
+        Avança com velocidades independentes para cada lado (direção diferencial suave).
+        """
+        left_speed = self._limit_speed(left_speed)
+        right_speed = self._limit_speed(right_speed)
+
+        self._set_motor_speeds(
+            left_speed, right_speed,
+            self.AIN1, self.BIN2
+        )
+
+        return left_speed, right_speed
 
     # --------------------------------------------------
     # Commande interne des moteurs
