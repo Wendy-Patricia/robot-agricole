@@ -1,6 +1,6 @@
 """Suivi de ligne avec une commande différentielle proportionnelle."""
 
-from line_detection import LineDetector
+from robot.navigation.line_detection import LineDetector
 
 
 class Navigator:
