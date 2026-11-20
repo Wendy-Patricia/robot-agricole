@@ -112,8 +112,8 @@ class Navigation:
 
         # Se error < 0 (linha à esquerda) -> steering < 0 -> reduz roda esquerda, acelera direita
         # Se error > 0 (linha à direita)  -> steering > 0 -> acelera roda esquerda, reduz direita
-        left_speed = current_base + steering
-        right_speed = current_base - steering
+        left_speed = current_base - steering
+        right_speed = current_base + steering
 
         left_speed = max(0.0, min(self.max_speed, left_speed))
         right_speed = max(0.0, min(self.max_speed, right_speed))
