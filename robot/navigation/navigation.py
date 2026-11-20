@@ -206,8 +206,8 @@ class Navigation:
             1.0
         )
 
-        duration = self.correction_time * correction
-        duration = max(0.02, min(0.07, duration))
+        duration = 0.03 + 0.12 * abs(self.filtered_error)
+        duration = max(0.03, min(0.15, duration))
 
         if self.filtered_error < 0:
             direction = "LEFT"
