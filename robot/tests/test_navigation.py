@@ -69,7 +69,7 @@ def create_navigation(camera, detector, motors):
         min_speed=25,
         max_speed=35,
         kp=0.3,
-        tolerance=0.10,
+        tolerance=0.15,
         lost_limit=5,
         correction_time=0.04
     )
