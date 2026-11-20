@@ -1,365 +1,93 @@
+"""Ensaio manual no robo. Nao e um teste unitario nem ativa GPIO ao importar."""
 
-"""
-Tests de navigation du robot agricole.
-
-Modes :
-1 - Simulation
-2 - Navigation réelle
-3 - Détection de ligne
-0 - Quitter
-"""
+import argparse
+from pathlib import Path
+import sys
+import time
 
 import cv2
 
-from robot.navigation.camera import Camera
-from robot.navigation.line_detection import LineDetector
-from robot.navigation.motors import MotorController
-from robot.navigation.navigation import Navigation
+# Permitir executar diretamente a partir de qualquer pasta no Raspberry Pi.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from navigation.camera import Camera
+from navigation.line_detection import LineDetector
+from navigation.navigation import Navigator
 
 
-class MockMotorController:
-    """
-    Simulation des moteurs sans GPIO.
-    """
+class PreviewMotors:
+    """Modo de ajuste da camera sem ativar os motores."""
 
-    def __init__(self):
-        self.last_action = "STOP"
-        self.last_speed = 0
-        print("[SIMULATION] Moteurs virtuels initialisés")
-
-    def forward(self, speed):
-        self.last_action = "FORWARD"
-        self.last_speed = speed
-
-    def backward(self, speed):
-        self.last_action = "BACKWARD"
-        self.last_speed = speed
-
-    def turn_left(self, speed):
-        self.last_action = "LEFT"
-        self.last_speed = speed
-
-    def turn_right(self, speed):
-        self.last_action = "RIGHT"
-        self.last_speed = speed
+    def drive(self, left, right):
+        pass
 
     def stop(self):
-        self.last_action = "STOP"
-        self.last_speed = 0
+        pass
 
     def cleanup(self):
-        self.stop()
-        print("[SIMULATION] Moteurs nettoyés")
+        pass
 
-
-def create_camera():
-    return Camera(
-        camera_index=0,
-        width=640,
-        height=480
-    )
-
-
-def create_navigation(camera, detector, motors):
-    return Navigation(
-        camera=camera,
-        line_detector=detector,
-        motor_controller=motors,
-        base_speed=38,
-        min_speed=0,
-        max_speed=65,
-        kp=55.0,
-        kd=15.0,
-        tolerance=0.05,
-        lost_limit=20
-    )
-
-
-# ==================================================
-# MODE 1 : SIMULATION
-# ==================================================
-
-def test_simulation():
-    print("\n" + "=" * 50)
-    print("TEST 1 : SIMULATION")
-    print("=" * 50)
-
-    camera = create_camera()
-    detector = LineDetector(min_area=500)
-    motors = MockMotorController()
-
-    navigation = create_navigation(
-        camera,
-        detector,
-        motors
-    )
-
-    try:
-        camera.start()
-
-        print("[INFO] Simulation démarrée")
-        print("[INFO] Appuyer sur Q pour quitter")
-
-        while True:
-            frame = camera.read()
-
-            if frame is None or frame.size == 0:
-                direction = navigation.navigate(None)
-
-                if navigation.safety_locked:
-                    break
-
-                continue
-
-            error, mask = detector.detect(frame)
-
-            direction = navigation.navigate(error)
-
-            debug_frame = navigation.draw_debug(
-                frame.copy(),
-                error,
-                direction
-            )
-
-            cv2.putText(
-                debug_frame,
-                f"Vitesse: {motors.last_speed:.1f}%",
-                (15, 160),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 255),
-                2
-            )
-
-            cv2.putText(
-                debug_frame,
-                "MODE SIMULATION",
-                (15, 190),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2
-            )
-
-            cv2.imshow(
-                "TEST - Simulation",
-                debug_frame
-            )
-
-            if mask is not None:
-                cv2.imshow(
-                    "TEST - Masque",
-                    mask
-                )
-
-            print(
-                f"\rErreur: {str(error):>7} | "
-                f"Direction: {direction:<10} | "
-                f"Moteurs: {motors.last_action:<8}",
-                end="",
-                flush=True
-            )
-
-            if navigation.safety_locked:
-                print("\n[SECURITE] Simulation arrêtée")
-                break
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-    except KeyboardInterrupt:
-        print("\n[INFO] Interruption")
-
-    finally:
-        navigation.stop()
-        motors.cleanup()
-        print("\n[TEST] Simulation terminée")
-
-
-# ==================================================
-# MODE 2 : NAVIGATION REELLE
-# ==================================================
-
-def test_real_navigation():
-    print("\n" + "=" * 50)
-    print("TEST 2 : NAVIGATION REELLE")
-    print("=" * 50)
-
-    print("[ATTENTION] Les moteurs vont être activés !")
-    print("[ATTENTION] Utiliser une zone sécurisée.")
-    print("[ATTENTION] Prévoir un arrêt d'urgence.")
-
-    confirmation = input(
-        "Activer les moteurs ? (oui/non) : "
-    ).strip().lower()
-
-    if confirmation != "oui":
-        print("[INFO] Test annulé")
-        return
-
-    camera = create_camera()
-    detector = LineDetector(min_area=500)
-
-    motors = None
-    navigation = None
-
-    try:
-        motors = MotorController()
-
-        navigation = create_navigation(
-            camera,
-            detector,
-            motors
-        )
-
-        print("[INFO] Navigation réelle démarrée")
-
-        navigation.run(show_debug=True)
-
-    except KeyboardInterrupt:
-        print("\n[INFO] Arrêt demandé")
-
-    finally:
-        if motors is not None:
-            motors.stop()
-
-            try:
-                motors.cleanup()
-            except Exception as error:
-                print(f"[ERREUR] Nettoyage: {error}")
-
-        camera.stop()
-        cv2.destroyAllWindows()
-
-        print("[TEST] Navigation réelle terminée")
-
-
-# ==================================================
-# MODE 3 : DETECTION UNIQUEMENT
-# ==================================================
-
-def test_line_detection():
-    print("\n" + "=" * 50)
-    print("TEST 3 : DETECTION DE LIGNE")
-    print("=" * 50)
-
-    camera = create_camera()
-    detector = LineDetector(min_area=500)
-
-    try:
-        camera.start()
-
-        print("[INFO] Détection démarrée")
-        print("[INFO] Aucun moteur activé")
-
-        while True:
-            frame = camera.read()
-
-            if frame is None or frame.size == 0:
-                print("[CAMERA] Image indisponible")
-                break
-
-            error, mask = detector.detect(frame)
-
-            height, width = frame.shape[:2]
-            center_x = width // 2
-
-            cv2.line(
-                frame,
-                (center_x, 0),
-                (center_x, height),
-                (255, 0, 0),
-                2
-            )
-
-            if error is not None:
-                line_x = int(
-                    center_x + error * center_x
-                )
-
-                cv2.circle(
-                    frame,
-                    (line_x, int(height * 0.75)),
-                    10,
-                    (0, 255, 0),
-                    -1
-                )
-
-                message = f"Erreur: {error:+.3f}"
-            else:
-                message = "Ligne non detectee"
-
-            cv2.putText(
-                frame,
-                message,
-                (20, 40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 255, 255),
-                2
-            )
-
-            cv2.imshow(
-                "TEST - Detection",
-                frame
-            )
-
-            if mask is not None:
-                cv2.imshow(
-                    "TEST - Masque",
-                    mask
-                )
-
-            print(
-                f"\r{message:<40}",
-                end="",
-                flush=True
-            )
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-    except KeyboardInterrupt:
-        print("\n[INFO] Interruption")
-
-    finally:
-        camera.stop()
-        cv2.destroyAllWindows()
-        print("\n[TEST] Détection terminée")
-
-
-# ==================================================
-# MENU PRINCIPAL
-# ==================================================
 
 def main():
-    print("\n" + "=" * 50)
-    print("       ROBOT AGRICOLE")
-    print("       TEST NAVIGATION")
-    print("=" * 50)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--drive", action="store_true", help="Ativar motores reais")
+    parser.add_argument("--display", action="store_true", help="Mostrar camera e mascara (ecra local)")
+    parser.add_argument("--camera", type=int, default=0)
+    parser.add_argument("--speed", type=float, default=30)
+    parser.add_argument("--min-speed", type=float, default=16)
+    parser.add_argument("--max-speed", type=float, default=60)
+    parser.add_argument("--kp", type=float, default=40)
+    parser.add_argument("--kd", type=float, default=1.5)
+    parser.add_argument("--threshold", type=int, default=80, help="Limiar de preto: 0 a 255")
+    parser.add_argument("--min-area", type=float, default=500)
+    args = parser.parse_args()
 
-    print("\nChoisir un mode :")
-    print("1 - Simulation (caméra + moteurs virtuels)")
-    print("2 - Navigation réelle (caméra + moteurs)")
-    print("3 - Détection de ligne uniquement")
-    print("0 - Quitter")
-
-    choice = input("\nVotre choix : ").strip()
-
-    if choice == "1":
-        test_simulation()
-
-    elif choice == "2":
-        test_real_navigation()
-
-    elif choice == "3":
-        test_line_detection()
-
-    elif choice == "0":
-        print("[INFO] Programme terminé")
-
-    else:
-        print("[ERREUR] Choix invalide")
+    camera = Camera(camera_index=args.camera)
+    motors = PreviewMotors()
+    navigator = Navigator(
+        camera, motors, LineDetector(args.min_area, args.threshold),
+        base_speed=args.speed, min_speed=args.min_speed, max_speed=args.max_speed,
+        kp=args.kp, kd=args.kd,
+    )
+    try:
+        camera.start()
+        if args.drive:
+            from navigation.motors import MotorController
+            motors = MotorController()
+            navigator.motors = motors
+        print("MOTORES ATIVOS" if args.drive else "PREVISAO: motores desativados")
+        print("Ctrl+C para parar. Com janela: Q ou Esc para sair.")
+        last_log = 0.0
+        while True:
+            error = navigator.step()
+            left, right = navigator.last_speeds
+            status = "LINHA PERDIDA - PARADO" if error is None else f"erro={error:+.3f}"
+            if time.monotonic() - last_log >= 0.2:
+                print(f"\r{status:<30} esquerda={left:5.1f}% direita={right:5.1f}%", end="", flush=True)
+                last_log = time.monotonic()
+            if args.display:
+                frame = navigator.last_frame.copy()
+                height, width = frame.shape[:2]
+                cv2.line(frame, (width // 2, height // 2), (width // 2, height), (255, 0, 0), 2)
+                points = navigator.detector.points
+                for index, point in enumerate(points):
+                    cv2.circle(frame, point, 6, (0, 255, 0), -1)
+                    if index:
+                        cv2.line(frame, points[index - 1], point, (0, 255, 255), 2)
+                cv2.putText(frame, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                cv2.imshow("Seguimento de linha", frame)
+                cv2.imshow("Mascara", navigator.last_mask)
+                if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
+                    break
+    except KeyboardInterrupt:
+        print("\nParagem pedida.")
+    finally:
+        try:
+            motors.cleanup()
+        finally:
+            camera.stop()
+            if args.display:
+                cv2.destroyAllWindows()
+            print()
 
 
 if __name__ == "__main__":
