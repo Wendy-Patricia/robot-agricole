@@ -44,8 +44,8 @@ class Navigator:
 
 
 def main():
-    from camera import Camera
-    from motors import MotorController
+    from .camera import Camera
+    from .motors import MotorController
 
     navigator = Navigator(Camera(), MotorController())
     try:
