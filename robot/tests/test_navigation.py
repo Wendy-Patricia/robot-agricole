@@ -65,13 +65,13 @@ def create_navigation(camera, detector, motors):
         camera=camera,
         line_detector=detector,
         motor_controller=motors,
-        base_speed=30,
+        base_speed=45,
         min_speed=25,
-        max_speed=35,
-        kp=0.3,
-        tolerance=0.25,
-        lost_limit=5,
-        correction_time=0.04
+        max_speed=65,
+        kp=25.0,
+        kd=10.0,
+        tolerance=0.08,
+        lost_limit=10
     )
 
 
