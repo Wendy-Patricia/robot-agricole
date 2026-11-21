@@ -1,3 +1,7 @@
+import cv2
+import math
+import time
+
 class Navigation:
     """
     Navigation autonome fluide avec contrôleur PID.

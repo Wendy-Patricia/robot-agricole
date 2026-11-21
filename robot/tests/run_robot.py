@@ -4,9 +4,9 @@ import time
 import cv2
 
 # Ajuste os imports para os nomes exatos dos seus arquivos:
-from motor_controller import MotorController
-from line_detector import LineDetector
-from navigation import Navigation
+from robot.navigation.motors import MotorController
+from robot.navigation.line_detection import LineDetector
+from robot.navigation.navigation import Navigation
 
 
 class PiCameraWrapper:
