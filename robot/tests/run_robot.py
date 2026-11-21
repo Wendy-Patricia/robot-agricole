@@ -1,13 +1,30 @@
 import argparse
+import importlib.util
+import os
 import sys
 import time
 import cv2
 
-# Ajuste os imports para os nomes exatos dos seus arquivos:
-from robot.navigation.motors import MotorController
-from robot.navigation.line_detection import LineDetector
-from robot.navigation.navigation import Navigation
 
+def _load_class_from_project(class_name):
+    """Procura automaticamente a classe dentro da pasta robot/."""
+    robot_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    for root, _, files in os.walk(robot_dir):
+        for file in files:
+            if file.endswith(".py") and not file.startswith("test_") and file != "run_robot.py":
+                filepath = os.path.join(root, file)
+                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                    if f"class {class_name}" in f.read():
+                        spec = importlib.util.spec_from_file_location(file[:-3], filepath)
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        return getattr(module, class_name)
+    raise ImportError(f"Classe '{class_name}' não encontrada em {robot_dir}")
+
+
+MotorController = _load_class_from_project("MotorController")
+LineDetector = _load_class_from_project("LineDetector")
+Navigation = _load_class_from_project("Navigation")
 
 class PiCameraWrapper:
     """
