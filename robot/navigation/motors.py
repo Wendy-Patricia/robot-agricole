@@ -74,6 +74,34 @@ class MotorController:
             self.gpio.output(self.NSLEEP, self.gpio.HIGH)
             self._enabled = True
 
+    def drive(self, left_speed: float, right_speed: float) -> tuple[float, float]:
+        """
+        Permite controlar cada roda independentemente (suporta valores negativos para ré).
+        Essencial para curvas suaves com PID sem parar o robô.
+        """
+        self._check_available()
+        self.enable()
+
+        left_speed = self._limit_signed_speed(left_speed)
+        right_speed = self._limit_signed_speed(right_speed)
+
+        # Controle do Motor Esquerdo (A)
+        if left_speed >= 0:
+            self._pwm_channels[self.AIN2].ChangeDutyCycle(0)
+            self._pwm_channels[self.AIN1].ChangeDutyCycle(left_speed)
+        else:
+            self._pwm_channels[self.AIN1].ChangeDutyCycle(0)
+            self._pwm_channels[self.AIN2].ChangeDutyCycle(abs(left_speed))
+
+        # Controle do Motor Direito (B)
+        if right_speed >= 0:
+            self._pwm_channels[self.BIN1].ChangeDutyCycle(0)
+            self._pwm_channels[self.BIN2].ChangeDutyCycle(right_speed)
+        else:
+            self._pwm_channels[self.BIN2].ChangeDutyCycle(0)
+            self._pwm_channels[self.BIN1].ChangeDutyCycle(abs(right_speed))
+
+        return left_speed, right_speed
     # --------------------------------------------------
     # Mouvements
     # --------------------------------------------------
@@ -118,20 +146,6 @@ class MotorController:
         )
 
         return speed, speed
-    
-    def drive(self, left_speed: float, right_speed: float) -> tuple[float, float]:
-        """
-        Avança com velocidades independentes para cada lado (direção diferencial suave).
-        """
-        left_speed = self._limit_speed(left_speed)
-        right_speed = self._limit_speed(right_speed)
-
-        self._set_motor_speeds(
-            left_speed, right_speed,
-            self.AIN1, self.BIN2
-        )
-
-        return left_speed, right_speed
 
     # --------------------------------------------------
     # Commande interne des moteurs
@@ -264,3 +278,5 @@ class MotorController:
             )
 
         return max(0.0, min(100.0, speed))
+    
+    
