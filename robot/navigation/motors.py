@@ -102,6 +102,15 @@ class MotorController:
             self._pwm_channels[self.BIN1].ChangeDutyCycle(abs(right_speed))
 
         return left_speed, right_speed
+    
+    @staticmethod
+    def _limit_signed_speed(speed):
+        speed = float(speed)
+
+        if not math.isfinite(speed):
+            raise ValueError("La vitesse doit être un nombre fini.")
+
+        return max(-100.0, min(100.0, speed))
     # --------------------------------------------------
     # Mouvements
     # --------------------------------------------------

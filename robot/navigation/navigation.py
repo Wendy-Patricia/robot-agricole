@@ -1,214 +1,109 @@
-import cv2
-import math
-import time
+from time import monotonic
 
-class Navigation:
-    """
-    Navigation autonome fluide avec contrôleur PID.
-    """
+from .line_detection import detect_line_center
 
-    def __init__(
-        self,
-        camera,
-        line_detector,
-        motor_controller,
-        base_speed=38.0,
-        min_speed=25.0,
-        max_speed=55.0,
-        kp=18.0,      # Ganho Proporcional (força da curva)
-        ki=0.05,      # Ganho Integral (corrige desvio acumulado)
-        kd=6.5,       # Ganho Derivativo (amortece e evita o tremor)
-        lost_limit=8
-    ):
-        self.camera = camera
-        self.line_detector = line_detector
-        self.motors = motor_controller
 
-        self.base_speed = base_speed
-        self.min_speed = min_speed
-        self.max_speed = max_speed
-
-        # Parâmetros PID
+class PID:
+    def __init__(self, kp, ki, kd, integral_limit=1.0):
         self.kp = kp
         self.ki = ki
         self.kd = kd
+        self.integral_limit = integral_limit
+        self.reset()
 
-        # Estados do PID
+    def reset(self):
         self.integral = 0.0
-        self.last_error = 0.0
-        self.last_time = None
+        self.previous_error = None
 
-        # Filtragem leve para suavizar ruído da câmera
-        self.filtered_error = None
-        self.alpha = 0.5  # Maior resposta que 0.35 para o D funcionar bem
-
-        # Segurança
-        self.lost_limit = max(1, lost_limit)
-        self.lost_frames = 0
-        self.safety_locked = False
-        self.running = False
-        self.motors_stopped = True
-
-    def _reset_pid(self):
-        self.integral = 0.0
-        self.last_error = 0.0
-        self.last_time = None
-        self.filtered_error = None
-
-    def _stop_motors(self):
-        if not self.motors_stopped:
-            self.motors.stop()
-            self.motors_stopped = True
-
-    def handle_lost_line(self):
-        self.lost_frames += 1
-        self._reset_pid()
-        self._stop_motors()
-
-        if self.lost_frames >= self.lost_limit:
-            if not self.safety_locked:
-                print("[SECURITE] Ligne perdue. Navigation verrouillée.")
-            self.safety_locked = True
-
-        return "LOST"
-
-    def navigate(self, error):
-        """
-        Calcula o ajuste PID e envia velocidades contínuas para os motores.
-        error < 0 : linha à esquerda -> desacelera esquerda, acelera direita
-        error > 0 : linha à direita  -> acelera esquerda, desacelera direita
-        """
-        if self.safety_locked:
-            self._stop_motors()
-            return "SAFE_STOP"
-
-        if error is None or not math.isfinite(float(error)) or abs(error) > 1.0:
-            return self.handle_lost_line()
-
-        self.lost_frames = 0
-        error = float(error)
-
-        # Filtro passa-baixa leve
-        if self.filtered_error is None:
-            self.filtered_error = error
-        else:
-            self.filtered_error = (
-                self.alpha * error + (1.0 - self.alpha) * self.filtered_error
-            )
-
-        # Cálculo do delta de tempo (dt) entre frames
-        now = time.monotonic()
-        if self.last_time is None:
-            dt = 0.033  # ~30 FPS inicial
-        else:
-            dt = max(1e-3, now - self.last_time)
-        self.last_time = now
-
-        # Termo P (Proporcional)
-        p_term = self.kp * self.filtered_error
-
-        # Termo I (Integral com Anti-Windup para não acumular demais)
-        self.integral += self.filtered_error * dt
-        self.integral = max(-1.5, min(1.5, self.integral))
-        i_term = self.ki * self.integral
-
-        # Termo D (Derivativo - freia a oscilação)
-        derivative = (self.filtered_error - self.last_error) / dt
-        d_term = self.kd * derivative
-
-        self.last_error = self.filtered_error
-
-        # Correção final (em unidades de duty cycle PWM)
-        correction = p_term + i_term + d_term
-
-        # Reduz levemente a velocidade base em curvas muito fechadas
-        current_base = self.base_speed * (1.0 - 0.25 * min(abs(self.filtered_error), 1.0))
-
-        # Direção diferencial: uma roda acelera, a outra reduz
-        left_speed = current_base + correction
-        right_speed = current_base - correction
-
-        # Limita dentro da faixa segura dos motores
-        left_speed = max(self.min_speed, min(self.max_speed, left_speed))
-        right_speed = max(self.min_speed, min(self.max_speed, right_speed))
-
-        self.motors.drive(left_speed, right_speed)
-        self.motors_stopped = False
-
-        if abs(self.filtered_error) < 0.08:
-            return "FORWARD"
-        return "LEFT" if self.filtered_error < 0 else "RIGHT"
-
-    def draw_debug(self, frame, error, direction):
-        height, width = frame.shape[:2]
-        center_x = width // 2
-        reference_y = int(height * 0.75)
-
-        cv2.line(frame, (center_x, 0), (center_x, height), (255, 0, 0), 2)
-
-        if error is not None and math.isfinite(float(error)):
-            line_x = int(center_x + error * center_x)
-            line_x = max(0, min(width - 1, line_x))
-            cv2.circle(frame, (line_x, reference_y), 8, (0, 255, 0), -1)
-            error_text = f"Erreur brute: {error:+.3f}"
-        else:
-            error_text = "Ligne non detectee"
-
-        filtered_text = (
-            f"Erreur PID: {self.filtered_error:+.3f}"
-            if self.filtered_error is not None
-            else "Erreur PID: N/A"
+    def update(self, error, dt):
+        self.integral += error * dt
+        self.integral = max(
+            -self.integral_limit,
+            min(self.integral, self.integral_limit),
         )
 
-        cv2.putText(frame, error_text, (15, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.putText(frame, filtered_text, (15, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.putText(frame, f"Direction: {direction}", (15, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        derivative = 0.0
+        if self.previous_error is not None:
+            derivative = (error - self.previous_error) / dt
 
-        if self.safety_locked:
-            cv2.putText(frame, "ARRET SECURITE", (15, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        self.previous_error = error
 
-        return frame
+        return (
+            self.kp * error
+            + self.ki * self.integral
+            + self.kd * derivative
+        )
 
-    def run(self, show_debug=True):
-        self.running = True
+
+def follow_line(read_frame, set_motor_speeds, base_speed=0.25, threshold=80):
+    """Segue a linha usando velocidades de avanço entre 0.0 e 1.0."""
+    pid = PID(kp=0.35, ki=0.0, kd=0.0)
+    previous_time = monotonic()
+
+    try:
+        while True:
+            frame = read_frame()
+            if frame is None:
+                raise RuntimeError("A câmara deixou de fornecer imagens.")
+
+            track_center, _ = detect_line_center(frame, threshold)
+
+            current_time = monotonic()
+            dt = max(current_time - previous_time, 0.001)
+            previous_time = current_time
+
+            if track_center is None:
+                # Arrêt jusqu'à ce que la ligne soit de nouveau visible.
+                set_motor_speeds(0.0, 0.0)
+                pid.reset()
+                continue
+
+            frame_center = (frame.shape[1] - 1) / 2
+            error_pixels = track_center - frame_center
+            error = error_pixels / max(frame_center, 1.0)
+
+            if error == 0.0:
+                pid.reset()
+                correction = 0.0
+            else:
+                correction = pid.update(error, dt)
+
+            left_speed = max(0.0, min(1.0, base_speed + correction))
+            right_speed = max(0.0, min(1.0, base_speed - correction))
+
+            set_motor_speeds(left_speed, right_speed)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        set_motor_speeds(0.0, 0.0)
+
+def main():
+    from .camera import Camera
+    from .motors import MotorController
+
+    camera = Camera(camera_index=0)
+
+    try:
+        camera.start()
+        motors = MotorController()
+
         try:
-            self.camera.start()
-            print("[NAVIGATION] Démarrage avec contrôleur PID")
+            def set_motor_speeds(left_speed, right_speed):
+                # Convertit les valeurs de 0 à 1 en pourcentages PWM.
+                motors.drive(left_speed * 100.0, right_speed * 100.0)
 
-            while self.running:
-                frame = self.camera.read()
-
-                if frame is None or frame.size == 0:
-                    self.navigate(None)
-                    if self.safety_locked:
-                        break
-                    time.sleep(0.02)
-                    continue
-
-                error, mask = self.line_detector.detect(frame)
-                direction = self.navigate(error)
-
-                if show_debug:
-                    debug_frame = self.draw_debug(frame.copy(), error, direction)
-                    cv2.imshow("Robot - Navigation", debug_frame)
-                    if mask is not None:
-                        cv2.imshow("Robot - Masque", mask)
-
-                    if cv2.waitKey(1) & 0xFF == ord("q"):
-                        break
-
-                if self.safety_locked:
-                    print("[NAVIGATION] Arrêt de sécurité.")
-                    break
-
-        except KeyboardInterrupt:
-            print("[NAVIGATION] Interruption utilisateur")
+            follow_line(
+                read_frame=camera.read,
+                set_motor_speeds=set_motor_speeds,
+                base_speed=0.25,
+                threshold=80,
+            )
         finally:
-            self.stop()
+            motors.cleanup()
+    finally:
+        camera.stop()
 
-    def stop(self):
-        self.running = False
-        self._stop_motors()
-        self.camera.stop()
-        cv2.destroyAllWindows()
-        print("[NAVIGATION] Robot arrêté")
+
+if __name__ == "__main__":
+    main()
