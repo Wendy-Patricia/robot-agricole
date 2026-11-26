@@ -3,6 +3,19 @@ import cv2
 import numpy as np
 
 
+def detect_line_center(frame, threshold=80):
+        """Renvoie le centre de la ligne noire et le masque binaire."""
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY_INV)
+
+        middle_row = mask.shape[0] // 2
+        x_coordinates = np.flatnonzero(mask[middle_row])
+
+        if x_coordinates.size == 0:
+            return None, mask
+
+        return float(x_coordinates.mean()), mask
+
 class LineDetector:
     """
     Détection et suivi d'une ligne sombre.
@@ -26,18 +39,7 @@ class LineDetector:
 
 
 
-    def detect_line_center(frame, threshold=80):
-        """Renvoie le centre de la ligne noire et le masque binaire."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, mask = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY_INV)
 
-        middle_row = mask.shape[0] // 2
-        x_coordinates = np.flatnonzero(mask[middle_row])
-
-        if x_coordinates.size == 0:
-            return None, mask
-
-        return float(x_coordinates.mean()), mask
 
     def detect(self, frame):
         if frame is None or frame.size == 0:
