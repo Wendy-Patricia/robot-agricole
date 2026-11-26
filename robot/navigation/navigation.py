@@ -1,108 +1,68 @@
+import argparse
+from contextlib import ExitStack
 from time import monotonic
 
+import cv2
+
+from .camera import open_camera
 from .line_detection import detect_line_center
+from .motors import open_motors
 
 
-class PID:
-    def __init__(self, kp, ki, kd, integral_limit=1.0):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.integral_limit = integral_limit
-        self.reset()
+def wheel_speeds(center, width, base_speed):
+    if center is None:
+        return 0.0, 0.0
 
-    def reset(self):
-        self.integral = 0.0
-        self.previous_error = None
+    midpoint = (width - 1) / 2
+    error = (center - midpoint) / midpoint
+    correction = base_speed * error
+    return (
+        max(0.0, min(1.0, base_speed + correction)),
+        max(0.0, min(1.0, base_speed - correction)),
+    )
 
-    def update(self, error, dt):
-        self.integral += error * dt
-        self.integral = max(
-            -self.integral_limit,
-            min(self.integral, self.integral_limit),
-        )
-
-        derivative = 0.0
-        if self.previous_error is not None:
-            derivative = (error - self.previous_error) / dt
-
-        self.previous_error = error
-
-        return (
-            self.kp * error
-            + self.ki * self.integral
-            + self.kd * derivative
-        )
-
-
-def follow_line(read_frame, set_motor_speeds, base_speed=0.25, threshold=80):
-    """Segue a linha usando velocidades de avanço entre 0.0 e 1.0."""
-    pid = PID(kp=0.35, ki=0.0, kd=0.0)
-    previous_time = monotonic()
-
-    try:
-        while True:
-            frame = read_frame()
-            if frame is None:
-                raise RuntimeError("A câmara deixou de fornecer imagens.")
-
-            track_center, _ = detect_line_center(frame, threshold)
-
-            current_time = monotonic()
-            dt = max(current_time - previous_time, 0.001)
-            previous_time = current_time
-
-            if track_center is None:
-                # Arrêt jusqu'à ce que la ligne soit de nouveau visible.
-                set_motor_speeds(0.0, 0.0)
-                pid.reset()
-                continue
-
-            frame_center = (frame.shape[1] - 1) / 2
-            error_pixels = track_center - frame_center
-            error = error_pixels / max(frame_center, 1.0)
-
-            if error == 0.0:
-                pid.reset()
-                correction = 0.0
-            else:
-                correction = pid.update(error, dt)
-
-            left_speed = max(0.0, min(1.0, base_speed + correction))
-            right_speed = max(0.0, min(1.0, base_speed - correction))
-
-            set_motor_speeds(left_speed, right_speed)
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        set_motor_speeds(0.0, 0.0)
 
 def main():
-    from .camera import Camera
-    from .motors import MotorController
-
-    camera = Camera(camera_index=0)
+    parser = argparse.ArgumentParser(description="Suivi d'une ligne noire.")
+    parser.add_argument("--camera", choices=("csi", "usb"), default="csi")
+    parser.add_argument("--camera-index", type=int, default=0)
+    parser.add_argument("--threshold", type=int, default=100)
+    parser.add_argument("--speed", type=float, default=0.25)
+    parser.add_argument("--drive", action="store_true", help="Active les moteurs.")
+    parser.add_argument("--preview", action="store_true", help="Affiche le masque.")
+    args = parser.parse_args()
+    if not 0 <= args.threshold <= 255:
+        parser.error("--threshold doit être compris entre 0 et 255.")
+    if not 0 < args.speed <= 1:
+        parser.error("--speed doit être supérieur à 0 et inférieur ou égal à 1.")
 
     try:
-        camera.start()
-        motors = MotorController()
+        with ExitStack() as resources:
+            read = resources.enter_context(open_camera(args.camera, args.camera_index))
+            if args.preview:
+                resources.callback(cv2.destroyAllWindows)
+            drive = resources.enter_context(open_motors()) if args.drive else None
+            next_log = 0.0
 
-        try:
-            def set_motor_speeds(left_speed, right_speed):
-                # Convertit les valeurs de 0 à 1 en pourcentages PWM.
-                motors.drive(left_speed * 100.0, right_speed * 100.0)
+            while True:
+                frame = read()
+                center, mask = detect_line_center(frame, args.threshold)
+                left, right = wheel_speeds(center, frame.shape[1], args.speed)
+                if drive is not None:
+                    drive(left, right)
 
-            follow_line(
-                read_frame=camera.read,
-                set_motor_speeds=set_motor_speeds,
-                base_speed=0.25,
-                threshold=80,
-            )
-        finally:
-            motors.cleanup()
-    finally:
-        camera.stop()
+                now = monotonic()
+                if now >= next_log:
+                    position = "ligne perdue" if center is None else f"x={center:.1f}"
+                    print(f"{position} | gauche={left:.0%} droite={right:.0%}", flush=True)
+                    next_log = now + 0.5
+
+                if args.preview:
+                    cv2.imshow("Masque de la ligne", mask)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
